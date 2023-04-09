@@ -4,6 +4,7 @@ using API.Data;
 using API.DTOs;
 using API.Entities;
 using API.Interfaces;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,13 @@ public class AccountController : BaseApiController
 {
     private readonly DataContext context;
     private readonly ITokenService tokenService;
+    private readonly IMapper mapper;
 
-    public AccountController(DataContext context, ITokenService tokenService)
+    public AccountController(DataContext context, ITokenService tokenService, IMapper mapper)
     {
         this.context = context;
         this.tokenService = tokenService;
+        this.mapper = mapper;
     }
 
     [HttpPost("register")]
@@ -27,14 +30,13 @@ public class AccountController : BaseApiController
         {
             return BadRequest("Username is taken");
         }
+
+        var user = mapper.Map<AppUser>(registerDto);
         
         using var hmac = new HMACSHA512();
-        var user = new AppUser
-        {
-            UserName = registerDto.Username.ToLower(),
-            PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)),
-            PasswordSalt = hmac.Key
-        };
+        user.UserName = registerDto.Username.ToLower();
+        user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password));
+        user.PasswordSalt = hmac.Key;
 
         context.Users.Add(user);
 
@@ -43,7 +45,8 @@ public class AccountController : BaseApiController
         return new UserDto
         {
             Username = user.UserName,
-            Token = tokenService.CreateToken(user)
+            Token = tokenService.CreateToken(user),
+            KnownAs = user.KnownAs
         };
     }
 
@@ -70,7 +73,8 @@ public class AccountController : BaseApiController
         {
             Username = user.UserName,
             Token = tokenService.CreateToken(user),
-            PhotoUrl = user.Photos.FirstOrDefault(p => p.IsMain)?.Url
+            PhotoUrl = user.Photos.FirstOrDefault(p => p.IsMain)?.Url,
+            KnownAs = user.KnownAs
         };
     }
 
