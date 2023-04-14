@@ -35,4 +35,8 @@ public class AppUser
     public List<UserLike> LikedByUsers { get; set; }
 
     public List<UserLike> LikedUsers { get; set; }
+    
+    public List<Message> MessagesSent { get; set; }
+
+    public List<Message> MessagesReceived { get; set; }
 }
