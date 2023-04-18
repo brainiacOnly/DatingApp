@@ -24,7 +24,7 @@ public class UsersController : BaseApiController
         this.mapper = mapper;
         this.photoService = photoService;
     }
-
+    
     [HttpGet]
     public async Task<ActionResult<PagedList<MemberDto>>> GetUsers([FromQuery]UserParams userParams)
     {
@@ -39,7 +39,7 @@ public class UsersController : BaseApiController
         Response.AddPaginationHeader(new PaginationHeader(users.CurrentPage, users.PageSize, users.TotalCount, users.TotalPages));
         return Ok(users);
     }
-
+    
     [HttpGet("{username}")]
     public async Task<ActionResult<MemberDto>> GetUser(string username)
     {
