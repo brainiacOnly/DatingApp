@@ -1,5 +1,6 @@
 ﻿using API.DTOs;
 using API.Entities;
+using API.Extensions;
 using API.Helpers;
 using API.Interfaces;
 using AutoMapper;
@@ -29,12 +30,12 @@ public class MessageRepository : IMessageRepository
         context.Messages.Remove(message);
     }
 
-    public async Task<Message> GetMessage(int id)
+    public async Task<Message> GetMessageAsync(int id)
     {
         return await context.Messages.FindAsync(id);
     }
 
-    public async Task<PagedList<MessageDto>> GetMessagesForUser(MessageParams messageParams)
+    public async Task<PagedList<MessageDto>> GetMessagesForUserAsync(MessageParams messageParams)
     {
         var query = context.Messages.OrderByDescending(m => m.MessageSent).AsQueryable();
         query = messageParams.Container switch
@@ -49,7 +50,7 @@ public class MessageRepository : IMessageRepository
         return await PagedList<MessageDto>.CreateAsync(messages, messageParams.PageNumber, messageParams.PageSize);
     }
 
-    public async Task<IEnumerable<MessageDto>> GetMessageThread(string currentUsername, string recipientUsername)
+    public async Task<IEnumerable<MessageDto>> GetMessageThreadAsync(string currentUsername, string recipientUsername)
     {
         var messages = await context.Messages
             .Include(m => m.Sender)
@@ -80,5 +81,32 @@ public class MessageRepository : IMessageRepository
     public async Task<bool> SaveAllAsync()
     {
         return await context.SaveChangesAsync() > 0;
+    }
+
+    public void AddGroup(Group group)
+    {
+        context.Groups.Add(group);
+    }
+
+    public void RemoveConnection(Connection connection)
+    {
+        context.Connections.Remove(connection);
+    }
+
+    public async Task<Connection> GetConnectionAsync(string connectionId)
+    {
+        return await context.Connections.FindAsync(connectionId);
+    }
+
+    public Task<Group> GetMessageGroupAsync(string groupName)
+    {
+        return context.Groups.Include(g => g.Connections).FirstOrDefaultAsync(g => g.Name == groupName);
+    }
+
+    public Task<Group> GetGroupForConnection(string connectionId)
+    {
+        return context.Groups.Include(g => g.Connections)
+            .Where(g => g.Connections.Any(c => c.ConnectionId == connectionId))
+            .FirstOrDefaultAsync();
     }
 }

@@ -59,7 +59,7 @@ public class MessagesController : BaseApiController
     public async Task<ActionResult<PagedList<MessageDto>>> GetMessagesForUser([FromQuery] MessageParams messageParams)
     {
         messageParams.Username = User.GetUsername();
-        var messages = await messageRepository.GetMessagesForUser(messageParams);
+        var messages = await messageRepository.GetMessagesForUserAsync(messageParams);
         Response.AddPaginationHeader(new PaginationHeader(messages.CurrentPage, messages.PageSize, messages.TotalCount, messages.TotalPages));
         return messages;
     }
@@ -68,14 +68,14 @@ public class MessagesController : BaseApiController
     public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessageThread(string username)
     {
         var currentUsername = User.GetUsername();
-        return Ok(await messageRepository.GetMessageThread(currentUsername, username));
+        return Ok(await messageRepository.GetMessageThreadAsync(currentUsername, username));
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteMessage(int id)
     {
         var username = User.GetUsername();
-        var message = await messageRepository.GetMessage(id);
+        var message = await messageRepository.GetMessageAsync(id);
         if (message.SenderUsername != username && message.RecipientUsername != username)
         {
             return Unauthorized();
