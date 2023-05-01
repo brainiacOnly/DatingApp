@@ -62,13 +62,28 @@ public class UserRepository : IUserRepository
             userParams.PageSize);
     }
 
-    public Task<MemberDto> GetMemberAsync(string username)
+    public async Task<MemberDto> GetMemberAsync(string username, bool isCurrentUser)
     {
-        return context.Users.Where(u => u.UserName == username).ProjectTo<MemberDto>(mapper.ConfigurationProvider).SingleOrDefaultAsync();
+        var query = context.Users.Where(u => u.UserName == username).ProjectTo<MemberDto>(mapper.ConfigurationProvider).AsQueryable();
+        if (isCurrentUser)
+        {
+            query = query.IgnoreQueryFilters();
+        }
+
+        return await query.SingleOrDefaultAsync();
     }
 
     public Task<string> GetUserGenderAsync(string username)
     {
         return context.Users.Where(u => u.UserName == username).Select(u => u.Gender).FirstOrDefaultAsync();
+    }
+
+    public Task<AppUser> GetUserByPhotoId(int photoId)
+    {
+        return context.Users
+            .Include(p => p.Photos)
+            .IgnoreQueryFilters()
+            .Where(p => p.Photos.Any(p => p.Id == photoId))
+            .FirstOrDefaultAsync();
     }
 }

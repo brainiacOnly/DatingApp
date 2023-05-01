@@ -43,7 +43,7 @@ public class UsersController : BaseApiController
     [HttpGet("{username}")]
     public async Task<ActionResult<MemberDto>> GetUser(string username)
     {
-        return await unitOfWork.UserRepository.GetMemberAsync(username);
+        return await unitOfWork.UserRepository.GetMemberAsync(username, User.GetUsername() == username);
     }
 
     [HttpPut]
@@ -86,11 +86,6 @@ public class UsersController : BaseApiController
             PublicId = result.PublicId
         };
 
-        if (user.Photos.Count == 0)
-        {
-            photo.IsMain = true;
-        }
-        
         user.Photos.Add(photo);
 
         if (await unitOfWork.CompleteAsync())
@@ -140,8 +135,7 @@ public class UsersController : BaseApiController
     [HttpDelete("delete-photo/{photoId}")]
     public async Task<ActionResult> DeletePhoto(int photoId)
     {
-        var user = await unitOfWork.UserRepository.GetUserByUsernameAsync(User.GetUsername());
-        var photo = user.Photos.FirstOrDefault(p => p.Id == photoId);
+        var photo = await unitOfWork.PhotoRepository.GetPhotoByIdAsync(photoId);
         if (photo == null)
         {
             return NotFound();
@@ -161,7 +155,7 @@ public class UsersController : BaseApiController
             }
         }
 
-        user.Photos.Remove(photo);
+        unitOfWork.PhotoRepository.RemovePhoto(photo);
         if (await unitOfWork.CompleteAsync())
         {
             return Ok();
