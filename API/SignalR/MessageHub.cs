@@ -11,20 +11,17 @@ namespace API.SignalR;
 [Authorize]
 public class MessageHub : Hub
 {
-    private readonly IMessageRepository  messageRepository;
-    private readonly IUserRepository userRepository;
     private readonly IMapper mapper;
     private readonly IHubContext<PresenceHub> presenceHub;
+    private readonly IUnitOfWork unitOfWork;
 
-    public MessageHub(IMessageRepository messageRepository,
-        IUserRepository userRepository,
-        IMapper mapper,
-        IHubContext<PresenceHub> presenceHub)
+    public MessageHub(IMapper mapper,
+        IHubContext<PresenceHub> presenceHub,
+        IUnitOfWork unitOfWork)
     {
-        this.messageRepository = messageRepository;
-        this.userRepository = userRepository;
         this.mapper = mapper;
         this.presenceHub = presenceHub;
+        this.unitOfWork = unitOfWork;
     }
 
     public override async Task OnConnectedAsync()
@@ -37,7 +34,12 @@ public class MessageHub : Hub
         
         await Clients.Group(groupName).SendAsync("UpdatedGroup", group);
 
-        var messages = await messageRepository.GetMessageThreadAsync(Context.User.GetUsername(), otherUser);
+        var messages = await unitOfWork.MessageRepository.GetMessageThreadAsync(Context.User.GetUsername(), otherUser);
+        if (unitOfWork.HasChanges())
+        {
+            await unitOfWork.CompleteAsync();
+        }
+        
         await Clients.Caller.SendAsync("ReceiveMessageThread", messages);
     }
 
@@ -49,8 +51,8 @@ public class MessageHub : Hub
             throw new HubException("You cannot send messages to yourself");
         }
 
-        var sender = await userRepository.GetUserByUsernameAsync(username);
-        var recipient = await userRepository.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
+        var sender = await unitOfWork.UserRepository.GetUserByUsernameAsync(username);
+        var recipient = await unitOfWork.UserRepository.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
         if (recipient == null)
         {
             throw new HubException("Not found user");
@@ -66,7 +68,7 @@ public class MessageHub : Hub
         };
 
         var groupName = GetGroupName(sender.UserName, recipient.UserName);
-        var group = await messageRepository.GetMessageGroupAsync(groupName);
+        var group = await unitOfWork.MessageRepository.GetMessageGroupAsync(groupName);
         if (group.Connections.Any(c => c.Username == recipient.UserName))
         {
             message.DateRead = DateTime.UtcNow;
@@ -84,8 +86,8 @@ public class MessageHub : Hub
             }
         }
         
-        messageRepository.AddMessage(message);
-        if (await messageRepository.SaveAllAsync())
+        unitOfWork.MessageRepository.AddMessage(message);
+        if (await unitOfWork.CompleteAsync())
         {
             await Clients.Group(groupName).SendAsync("NewMessage", mapper.Map<MessageDto>(message));
         }
@@ -106,17 +108,17 @@ public class MessageHub : Hub
 
     private async Task<Group> AddToGroupAsync(string groupName)
     {
-        var group = await messageRepository.GetMessageGroupAsync(groupName);
+        var group = await unitOfWork.MessageRepository.GetMessageGroupAsync(groupName);
         var connection = new Connection(Context.ConnectionId, Context.User.GetUsername());
         if (group == null)
         {
             group = new Group(groupName);
-            messageRepository.AddGroup(group);
+            unitOfWork.MessageRepository.AddGroup(group);
         }
         
         group.Connections.Add(connection);
 
-        if (await messageRepository.SaveAllAsync())
+        if (await unitOfWork.CompleteAsync())
         {
             return group;
         }
@@ -126,10 +128,10 @@ public class MessageHub : Hub
 
     private async Task<Group> RemoveFromMessageGroupAsync()
     {
-        var group = await messageRepository.GetGroupForConnection(Context.ConnectionId);
+        var group = await unitOfWork.MessageRepository.GetGroupForConnection(Context.ConnectionId);
         var connection = group.Connections.FirstOrDefault(c => c.ConnectionId == Context.ConnectionId);
-        messageRepository.RemoveConnection(connection);
-        if (await messageRepository.SaveAllAsync())
+        unitOfWork.MessageRepository.RemoveConnection(connection);
+        if (await unitOfWork.CompleteAsync())
         {
             return group;
         }
