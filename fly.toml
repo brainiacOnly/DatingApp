@@ -1,0 +1,21 @@
+# fly.toml app configuration file generated for datingapp-brainiac09 on 2023-05-02T21:57:29+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "datingapp-brainiac09"
+primary_region = "arn"
+
+[build]
+  image = "brainiac09/datingapp:latest"
+
+[env]
+  ASPNETCORE_URLS="http://+:8080"
+  CloudinarySettings__CloudName="brainiac09"
+  CloudinarySettings__ApiKey="483348261243999"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
